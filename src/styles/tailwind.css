@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Core Colors */
+    --color-background: #FAFAFA; /* warm off-white */
+    --color-foreground: #1F2937; /* near-black */
+    --color-card: #FFFFFF; /* pure white */
+    --color-card-foreground: #1F2937; /* near-black */
+    --color-popover: #FFFFFF; /* pure white */
+    --color-popover-foreground: #1F2937; /* near-black */
+    --color-muted: #F3F4F6; /* light gray */
+    --color-muted-foreground: #6B7280; /* medium gray */
+    --color-border: #E5E7EB; /* light border */
+    --color-input: #FFFFFF; /* pure white */
+    --color-ring: #1E3A8A; /* deep blue */
+
+    /* Brand Colors */
+    --color-primary: #1E3A8A; /* deep blue */
+    --color-primary-foreground: #FFFFFF; /* white */
+    --color-secondary: #64748B; /* professional slate gray */
+    --color-secondary-foreground: #FFFFFF; /* white */
+    --color-accent: #059669; /* success-oriented green */
+    --color-accent-foreground: #FFFFFF; /* white */
+
+    /* Status Colors */
+    --color-success: #10B981; /* vibrant green */
+    --color-success-foreground: #FFFFFF; /* white */
+    --color-warning: #F59E0B; /* amber */
+    --color-warning-foreground: #FFFFFF; /* white */
+    --color-error: #DC2626; /* clear red */
+    --color-error-foreground: #FFFFFF; /* white */
+    --color-destructive: #DC2626; /* clear red */
+    --color-destructive-foreground: #FFFFFF; /* white */
+
+    /* Shadows */
+    --shadow-minimal: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-moderate: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-prominent: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+    /* Border Radius */
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  .shadow-minimal {
+    box-shadow: var(--shadow-minimal);
+  }
+
+  .shadow-moderate {
+    box-shadow: var(--shadow-moderate);
+  }
+
+  .shadow-prominent {
+    box-shadow: var(--shadow-prominent);
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 200ms ease-out;
+  }
+
+  .animate-slide-down {
+    animation: slideDown 300ms ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 300ms ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

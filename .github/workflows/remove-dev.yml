@@ -1,0 +1,58 @@
+name: Remove Dev Environment
+
+on:
+  workflow_dispatch: # Manual trigger only
+    inputs:
+      confirm:
+        description: 'Type "delete" to confirm removal'
+        required: true
+        default: ""
+
+# Required for OIDC authentication
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  NODE_VERSION: 18
+
+jobs:
+  remove:
+    name: Remove Development Environment
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'delete'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GitHubActions-StipChaser-Remove
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Remove SST stack
+        run: |
+          npm run remove -- --stage dev
+          echo "✅ Development environment removed successfully"
+
+      - name: Create summary
+        run: |
+          echo "# 🗑️ Environment Removal Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Development environment has been removed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Removed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date)" >> $GITHUB_STEP_SUMMARY
