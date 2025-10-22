@@ -2,6 +2,19 @@
 
 A Next.js application with serverless infrastructure for streamlining document collection in car dealerships.
 
+About StipChaser
+StipChaser is a secure and compliant communication platform designed to streamline interactions between lenders, their representatives, dealership personnel, and consumers. It enables seamless document requests—known as "stips"—directly from customers, transforming a traditionally high-friction, insecure, and time-consuming process into an efficient workflow.
+The Problem: Contracts in Transit
+In the automotive finance industry, "contracts in transit" represent a massive risk: millions of dollars in unfunded loans sitting idle as dealerships wait for critical documentation. This delays funding, ties up valuable resources, and exposes businesses to unnecessary financial and compliance vulnerabilities.
+How StipChaser Solves It
+
+Secure & Compliant: End-to-end encryption and regulatory adherence ensure data protection and peace of mind.
+Real-Time Collaboration: Lenders, reps, and dealership teams can communicate and track stips in one centralized hub.
+Accelerated Funding: Reduce turnaround times from days to hours, minimizing exposure and freeing up capital.
+User-Friendly Interface: Simple tools for document uploads, notifications, and status updates—empowering everyone involved.
+
+Built with scalability in mind, StipChaser empowers dealerships to focus on growth, not paperwork. Learn more or get started.
+
 ## Tech Stack
 
 - **Frontend**: Next.js 15 with React 18
