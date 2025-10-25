@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Header from "../../src/components/ui/Header";
-import MetricsPanel from "../../src/page-components/dealer-dashboard/components/MetricsPanel";
-import FilterControls from "../../src/page-components/dealer-dashboard/components/FilterControls";
-import DealsTable from "../../src/page-components/dealer-dashboard/components/DealsTable";
-import NewDealModal from "../../src/page-components/dealer-dashboard/components/NewDealModal";
+import Header from "../../components/ui/Header";
+import MetricsPanel from "./components/MetricsPanel";
+import FilterControls from "./components/FilterControls";
+import DealsTable from "./components/DealsTable";
+import NewDealModal from "./components/NewDealModal";
 
 const DealerDashboard = () => {
   const router = useRouter();

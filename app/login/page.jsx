@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import LoginHeader from "../../src/pages/login/components/LoginHeader";
-import LoginForm from "../../src/pages/login/components/LoginForm";
-import TrustSignals from "../../src/pages/login/components/TrustSignals";
-import PricingTable from "../../src/pages/login/components/PricingTable";
+import LoginHeader from "../../src/page-components/login/components/LoginHeader";
+import LoginForm from "../../src/page-components/login/components/LoginForm";
+import TrustSignals from "../../src/page-components/login/components/TrustSignals";
+import PricingTable from "../../src/page-components/login/components/PricingTable";
 
 const LoginPage = () => {
   return (

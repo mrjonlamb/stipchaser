@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 
 const ConversationInterface = dynamic(
-  () => import("../../src/pages/conversation-interface"),
+  () => import("../../src/page-components/conversation-interface"),
   {
     ssr: false,
   }

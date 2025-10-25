@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 
 const ConsumerPortal = dynamic(
-  () => import("../../src/pages/consumer-portal"),
+  () => import("../../src/page-components/consumer-portal"),
   {
     ssr: false,
   }
