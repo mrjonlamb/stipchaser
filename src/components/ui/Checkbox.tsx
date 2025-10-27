@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { Check, Minus } from "lucide-react";
 import { cn } from "../../utils/cn";
 
@@ -29,9 +29,10 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
     },
     ref
   ) => {
+    const generatedId = useId();
+
     // Generate unique ID if not provided
-    const checkboxId =
-      id || `checkbox-${Math.random()?.toString(36)?.substr(2, 9)}`;
+    const checkboxId = id || `checkbox-${generatedId}`;
 
     // Size variants
     const sizeClasses = {

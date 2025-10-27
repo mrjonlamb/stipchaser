@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { cn } from "../../utils/cn";
 
 export interface InputProps
@@ -22,8 +22,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
+    const generatedId = useId();
+
     // Generate unique ID if not provided
-    const inputId = id || `input-${Math.random()?.toString(36)?.substr(2, 9)}`;
+    const inputId = id || `input-${generatedId}`;
 
     // Base input classes
     const baseInputClasses =
