@@ -8,17 +8,57 @@ import FilterControls from "../../src/page-components/dealer-dashboard/component
 import DealsTable from "../../src/page-components/dealer-dashboard/components/DealsTable";
 import NewDealModal from "../../src/page-components/dealer-dashboard/components/NewDealModal";
 
-const DealerDashboard = () => {
+interface Customer {
+  name: string;
+  phone: string;
+  email: string;
+  avatar: string;
+  avatarAlt: string;
+}
+
+interface Vehicle {
+  year: string;
+  make: string;
+  model: string;
+  vin: string;
+}
+
+interface Deal {
+  id: string;
+  customer: Customer;
+  vehicle: Vehicle;
+  status: string;
+  priority: string;
+  pendingDocuments: number;
+  lastActivity: Date;
+  assignedStaff: string;
+}
+
+interface Filters {
+  search: string;
+  status: string;
+  urgency: string;
+  assignedStaff: string;
+}
+
+interface Metrics {
+  activeDeals: number;
+  completionRate: number;
+  urgentItems: number;
+  pendingDocuments: number;
+}
+
+const DealerDashboard: React.FC = () => {
   const router = useRouter();
-  const [deals, setDeals] = useState([]);
-  const [filteredDeals, setFilteredDeals] = useState([]);
-  const [filters, setFilters] = useState({
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [filteredDeals, setFilteredDeals] = useState<Deal[]>([]);
+  const [filters, setFilters] = useState<Filters>({
     search: "",
     status: "all",
     urgency: "all",
     assignedStaff: "all",
   });
-  const [metrics, setMetrics] = useState({
+  const [metrics, setMetrics] = useState<Metrics>({
     activeDeals: 0,
     completionRate: 0,
     urgentItems: 0,
@@ -27,7 +67,7 @@ const DealerDashboard = () => {
   const [isNewDealModalOpen, setIsNewDealModalOpen] = useState(false);
 
   // Mock deals data
-  const mockDeals = [
+  const mockDeals: Deal[] = [
     {
       id: "deal-001",
       customer: {
@@ -209,14 +249,14 @@ const DealerDashboard = () => {
     setFilteredDeals(filtered);
   }, [deals, filters]);
 
-  const handleFilterChange = (filterType, value) => {
+  const handleFilterChange = (filterType: string, value: string) => {
     setFilters((prev) => ({
       ...prev,
       [filterType]: value,
     }));
   };
 
-  const handleSearch = (searchTerm) => {
+  const handleSearch = (searchTerm: string) => {
     setFilters((prev) => ({
       ...prev,
       search: searchTerm,
@@ -227,7 +267,7 @@ const DealerDashboard = () => {
     setIsNewDealModalOpen(true);
   };
 
-  const handleCreateDeal = (newDeal) => {
+  const handleCreateDeal = (newDeal: Deal) => {
     setDeals((prev) => [newDeal, ...prev]);
 
     // Update metrics
@@ -238,7 +278,7 @@ const DealerDashboard = () => {
     }));
   };
 
-  const handleDealClick = (deal) => {
+  const handleDealClick = (deal: Deal) => {
     router.push(
       `/conversation-interface?dealId=${deal?.id}&customer=${encodeURIComponent(
         JSON.stringify(deal?.customer)
@@ -246,7 +286,7 @@ const DealerDashboard = () => {
     );
   };
 
-  const handleMessageClick = (deal) => {
+  const handleMessageClick = (deal: Deal) => {
     router.push(
       `/conversation-interface?dealId=${deal?.id}&customer=${encodeURIComponent(
         JSON.stringify(deal?.customer)
@@ -254,7 +294,7 @@ const DealerDashboard = () => {
     );
   };
 
-  const handleDocumentRequest = (deal) => {
+  const handleDocumentRequest = (deal: Deal) => {
     router.push(
       `/document-management?dealId=${deal?.id}&customer=${encodeURIComponent(
         JSON.stringify(deal?.customer)
@@ -262,7 +302,7 @@ const DealerDashboard = () => {
     );
   };
 
-  const handleRoleSwitch = (newRole) => {
+  const handleRoleSwitch = (newRole: string) => {
     if (newRole === "consumer") {
       router.push("/consumer-portal");
     }

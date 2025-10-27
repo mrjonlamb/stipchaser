@@ -6,7 +6,7 @@ import LoginForm from "../../src/page-components/login/components/LoginForm";
 import TrustSignals from "../../src/page-components/login/components/TrustSignals";
 import PricingTable from "../../src/page-components/login/components/PricingTable";
 
-const LoginPage = () => {
+const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Main Container */}
