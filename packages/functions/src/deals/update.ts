@@ -1,21 +1,8 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { queryOne } from "../db.js";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.DEALS_TABLE;
-
-    if (!tableName) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ message: "Table name not configured" }),
-      };
-    }
-
     const { id } = event.pathParameters || {};
 
     if (!id) {
@@ -34,37 +21,58 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
     const updates = JSON.parse(event.body);
 
-    // Build update expression dynamically
-    const updateExpressionParts: string[] = [];
-    const expressionAttributeNames: Record<string, string> = {};
-    const expressionAttributeValues: Record<string, any> = {};
+    // Build update query dynamically
+    const setClauses: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
 
-    Object.keys(updates).forEach((key, index) => {
+    // Mapping of JSON keys to database columns
+    const columnMapping: Record<string, string> = {
+      customerId: "customer_id",
+      pendingDocuments: "pending_documents",
+      updatedAt: "updated_at",
+    };
+
+    Object.keys(updates).forEach((key) => {
       if (key !== "id") {
         // Don't allow updating the id
-        const attrName = `#attr${index}`;
-        const attrValue = `:val${index}`;
-        updateExpressionParts.push(`${attrName} = ${attrValue}`);
-        expressionAttributeNames[attrName] = key;
-        expressionAttributeValues[attrValue] = updates[key];
+        const columnName = columnMapping[key] || key;
+
+        // Handle JSON fields
+        if (key === "customer" || key === "vehicle") {
+          setClauses.push(`${columnName} = $${paramIndex}::jsonb`);
+          params.push(JSON.stringify(updates[key]));
+        } else {
+          setClauses.push(`${columnName} = $${paramIndex}`);
+          params.push(updates[key]);
+        }
+        paramIndex++;
       }
     });
 
-    // Always update the updatedAt timestamp
-    updateExpressionParts.push("#updatedAt = :updatedAt");
-    expressionAttributeNames["#updatedAt"] = "updatedAt";
-    expressionAttributeValues[":updatedAt"] = Date.now();
+    // Always update the updated_at timestamp
+    setClauses.push(`updated_at = $${paramIndex}`);
+    params.push(Date.now());
+    paramIndex++;
 
-    const command = new UpdateCommand({
-      TableName: tableName,
-      Key: { id },
-      UpdateExpression: `SET ${updateExpressionParts.join(", ")}`,
-      ExpressionAttributeNames: expressionAttributeNames,
-      ExpressionAttributeValues: expressionAttributeValues,
-      ReturnValues: "ALL_NEW",
-    });
+    // Add id parameter for WHERE clause
+    params.push(id);
 
-    const response = await docClient.send(command);
+    const sql = `
+      UPDATE deals 
+      SET ${setClauses.join(", ")}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `;
+
+    const deal = await queryOne(sql, params);
+
+    if (!deal) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ message: "Deal not found" }),
+      };
+    }
 
     return {
       statusCode: 200,
@@ -74,7 +82,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       },
       body: JSON.stringify({
         message: "Deal updated successfully",
-        deal: response.Attributes,
+        deal,
       }),
     };
   } catch (error) {

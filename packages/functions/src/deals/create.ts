@@ -1,22 +1,9 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { randomUUID } from "crypto";
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { queryOne } from "../db.js";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.DEALS_TABLE;
-
-    if (!tableName) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ message: "Table name not configured" }),
-      };
-    }
-
     if (!event.body) {
       return {
         statusCode: 400,
@@ -37,22 +24,33 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     }
 
     const now = Date.now();
-    const deal = {
-      id: randomUUID(),
-      ...dealData,
-      status: dealData.status || "pending",
-      priority: dealData.priority || "medium",
-      pendingDocuments: dealData.pendingDocuments || 0,
-      createdAt: now,
-      updatedAt: now,
-    };
+    const id = randomUUID();
+    const status = dealData.status || "pending";
+    const priority = dealData.priority || "medium";
+    const pendingDocuments = dealData.pendingDocuments || 0;
 
-    const command = new PutCommand({
-      TableName: tableName,
-      Item: deal,
-    });
+    const sql = `
+      INSERT INTO deals (
+        id, customer_id, customer, vehicle, status, priority, 
+        pending_documents, created_at, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
 
-    await docClient.send(command);
+    const params = [
+      id,
+      dealData.customerId || null,
+      JSON.stringify(dealData.customer),
+      JSON.stringify(dealData.vehicle),
+      status,
+      priority,
+      pendingDocuments,
+      now,
+      now,
+    ];
+
+    const deal = await queryOne(sql, params);
 
     return {
       statusCode: 201,

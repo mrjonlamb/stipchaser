@@ -1,22 +1,9 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { randomUUID } from "crypto";
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { queryOne } from "../db.js";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.CONVERSATIONS_TABLE;
-
-    if (!tableName) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ message: "Table name not configured" }),
-      };
-    }
-
     if (!event.body) {
       return {
         statusCode: 400,
@@ -36,21 +23,19 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     }
 
     const now = Date.now();
-    const conversation = {
-      id: randomUUID(),
-      dealId,
-      participants,
-      createdAt: now,
-      updatedAt: now,
-      messageCount: 0,
-    };
+    const id = randomUUID();
 
-    const command = new PutCommand({
-      TableName: tableName,
-      Item: conversation,
-    });
+    const sql = `
+      INSERT INTO conversations (
+        id, deal_id, participants, created_at, updated_at, message_count
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `;
 
-    await docClient.send(command);
+    const params = [id, dealId, JSON.stringify(participants), now, now, 0];
+
+    const conversation = await queryOne(sql, params);
 
     return {
       statusCode: 201,

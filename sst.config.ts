@@ -9,55 +9,14 @@ export default $config({
     };
   },
   async run() {
-    // DynamoDB Tables (create these first)
-    const dealsTable = new sst.aws.Dynamo("DealsTable", {
-      fields: {
-        id: "string",
-        customerId: "string",
-        status: "string",
-        createdAt: "number",
-      },
-      primaryIndex: { hashKey: "id" },
-      globalIndexes: {
-        statusIndex: { hashKey: "status", rangeKey: "createdAt" },
-        customerIndex: { hashKey: "customerId", rangeKey: "createdAt" },
-      },
+    // VPC for Aurora PostgreSQL
+    const vpc = new sst.aws.Vpc("StipChaserVpc", {
+      nat: "managed",
     });
 
-    const documentsTable = new sst.aws.Dynamo("DocumentsTable", {
-      fields: {
-        id: "string",
-        dealId: "string",
-        uploadedAt: "number",
-      },
-      primaryIndex: { hashKey: "id" },
-      globalIndexes: {
-        dealIndex: { hashKey: "dealId", rangeKey: "uploadedAt" },
-      },
-    });
-
-    const conversationsTable = new sst.aws.Dynamo("ConversationsTable", {
-      fields: {
-        id: "string",
-        dealId: "string",
-        updatedAt: "number",
-      },
-      primaryIndex: { hashKey: "id" },
-      globalIndexes: {
-        dealIndex: { hashKey: "dealId", rangeKey: "updatedAt" },
-      },
-    });
-
-    const messagesTable = new sst.aws.Dynamo("MessagesTable", {
-      fields: {
-        id: "string",
-        conversationId: "string",
-        timestamp: "number",
-      },
-      primaryIndex: { hashKey: "id" },
-      globalIndexes: {
-        conversationIndex: { hashKey: "conversationId", rangeKey: "timestamp" },
-      },
+    // Aurora PostgreSQL Cluster
+    const database = new sst.aws.Postgres("StipChaserDB", {
+      vpc,
     });
 
     // S3 Bucket for documents
@@ -81,114 +40,94 @@ export default $config({
     // Define API routes with Lambda functions
     api.route("GET /deals", {
       handler: "packages/functions/src/deals/list.handler",
-      environment: {
-        DEALS_TABLE: dealsTable.name,
-      },
-      link: [dealsTable],
+      link: [database],
+      vpc,
     });
 
     api.route("POST /deals", {
       handler: "packages/functions/src/deals/create.handler",
-      environment: {
-        DEALS_TABLE: dealsTable.name,
-      },
-      link: [dealsTable],
+      link: [database],
+      vpc,
     });
 
     api.route("GET /deals/{id}", {
       handler: "packages/functions/src/deals/get.handler",
-      environment: {
-        DEALS_TABLE: dealsTable.name,
-      },
-      link: [dealsTable],
+      link: [database],
+      vpc,
     });
 
     api.route("PUT /deals/{id}", {
       handler: "packages/functions/src/deals/update.handler",
-      environment: {
-        DEALS_TABLE: dealsTable.name,
-      },
-      link: [dealsTable],
+      link: [database],
+      vpc,
     });
 
     api.route("DELETE /deals/{id}", {
       handler: "packages/functions/src/deals/delete.handler",
-      environment: {
-        DEALS_TABLE: dealsTable.name,
-      },
-      link: [dealsTable],
+      link: [database],
+      vpc,
     });
 
     // Documents API routes
     api.route("GET /documents", {
       handler: "packages/functions/src/documents/list.handler",
       environment: {
-        DOCUMENTS_TABLE: documentsTable.name,
         DOCUMENTS_BUCKET: documentsBucket.name,
       },
-      link: [documentsTable, documentsBucket],
+      link: [database, documentsBucket],
+      vpc,
     });
 
     api.route("POST /documents", {
       handler: "packages/functions/src/documents/upload.handler",
       environment: {
-        DOCUMENTS_TABLE: documentsTable.name,
         DOCUMENTS_BUCKET: documentsBucket.name,
       },
-      link: [documentsTable, documentsBucket],
+      link: [database, documentsBucket],
+      vpc,
     });
 
     api.route("GET /documents/{id}", {
       handler: "packages/functions/src/documents/get.handler",
       environment: {
-        DOCUMENTS_TABLE: documentsTable.name,
         DOCUMENTS_BUCKET: documentsBucket.name,
       },
-      link: [documentsTable, documentsBucket],
+      link: [database, documentsBucket],
+      vpc,
     });
 
     api.route("DELETE /documents/{id}", {
       handler: "packages/functions/src/documents/delete.handler",
       environment: {
-        DOCUMENTS_TABLE: documentsTable.name,
         DOCUMENTS_BUCKET: documentsBucket.name,
       },
-      link: [documentsTable, documentsBucket],
+      link: [database, documentsBucket],
+      vpc,
     });
 
-    // Messages API routes
+    // Conversations API routes
     api.route("GET /conversations", {
       handler: "packages/functions/src/conversations/list.handler",
-      environment: {
-        CONVERSATIONS_TABLE: conversationsTable.name,
-      },
-      link: [conversationsTable],
+      link: [database],
+      vpc,
     });
 
     api.route("POST /conversations", {
       handler: "packages/functions/src/conversations/create.handler",
-      environment: {
-        CONVERSATIONS_TABLE: conversationsTable.name,
-      },
-      link: [conversationsTable],
+      link: [database],
+      vpc,
     });
 
     api.route("GET /conversations/{id}/messages", {
       handler: "packages/functions/src/conversations/messages.handler",
-      environment: {
-        CONVERSATIONS_TABLE: conversationsTable.name,
-        MESSAGES_TABLE: messagesTable.name,
-      },
-      link: [conversationsTable, messagesTable],
+      link: [database],
+      vpc,
     });
 
     api.route("POST /conversations/{id}/messages", {
       handler: "packages/functions/src/conversations/send-message.handler",
-      environment: {
-        CONVERSATIONS_TABLE: conversationsTable.name,
-        MESSAGES_TABLE: messagesTable.name,
-      },
-      link: [conversationsTable, messagesTable],
+      link: [database],
+      vpc,
     });
 
     // Create the Next.js app
@@ -201,6 +140,11 @@ export default $config({
     return {
       api: api.url,
       web: web.url,
+      database: {
+        host: database.host,
+        port: database.port,
+        database: database.database,
+      },
     };
   },
 });

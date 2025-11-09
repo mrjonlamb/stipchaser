@@ -1,21 +1,8 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { query } from "../db.js";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const messagesTable = process.env.MESSAGES_TABLE;
-
-    if (!messagesTable) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ message: "Table name not configured" }),
-      };
-    }
-
     const { id } = event.pathParameters || {};
 
     if (!id) {
@@ -25,18 +12,14 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       };
     }
 
-    // Query messages by conversationId
-    const command = new QueryCommand({
-      TableName: messagesTable,
-      IndexName: "conversationIndex",
-      KeyConditionExpression: "conversationId = :conversationId",
-      ExpressionAttributeValues: {
-        ":conversationId": id,
-      },
-      ScanIndexForward: true, // Sort by timestamp ascending (oldest first)
-    });
+    // Query messages by conversation_id
+    const sql = `
+      SELECT * FROM messages 
+      WHERE conversation_id = $1 
+      ORDER BY timestamp ASC
+    `;
 
-    const response = await docClient.send(command);
+    const messages = await query(sql, [id]);
 
     return {
       statusCode: 200,
@@ -45,8 +28,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         "Access-Control-Allow-Origin": "*",
       },
       body: JSON.stringify({
-        messages: response.Items || [],
-        count: response.Count || 0,
+        messages,
+        count: messages.length,
       }),
     };
   } catch (error) {

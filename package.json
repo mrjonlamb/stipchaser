@@ -54,7 +54,7 @@
   },
   "scripts": {
     "dev": "sst dev next dev",
-    "build": "sst build && next build",
+    "build": "next build",
     "start": "next start",
     "deploy": "sst deploy --stage production",
     "deploy:dev": "sst deploy --stage dev",

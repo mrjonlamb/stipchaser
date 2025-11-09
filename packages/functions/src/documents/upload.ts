@@ -1,20 +1,16 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { randomUUID } from "crypto";
+import { queryOne } from "../db.js";
 
-const dynamoClient = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
 const s3Client = new S3Client({});
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.DOCUMENTS_TABLE;
     const bucketName = process.env.DOCUMENTS_BUCKET;
 
-    if (!tableName || !bucketName) {
+    if (!bucketName) {
       return {
         statusCode: 500,
         body: JSON.stringify({ message: "Configuration missing" }),
@@ -53,25 +49,28 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       expiresIn: 3600,
     });
 
-    // Store document metadata in DynamoDB
+    // Store document metadata in PostgreSQL
     const now = Date.now();
-    const document = {
-      id: documentId,
+    const sql = `
+      INSERT INTO documents (
+        id, deal_id, file_name, file_type, category, s3_key, uploaded_at, status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `;
+
+    const params = [
+      documentId,
       dealId,
       fileName,
       fileType,
-      category: category || "general",
+      category || "general",
       s3Key,
-      uploadedAt: now,
-      status: "pending",
-    };
+      now,
+      "pending",
+    ];
 
-    const command = new PutCommand({
-      TableName: tableName,
-      Item: document,
-    });
-
-    await docClient.send(command);
+    const document = await queryOne(sql, params);
 
     return {
       statusCode: 201,

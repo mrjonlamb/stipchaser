@@ -1,22 +1,14 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  DeleteCommand,
-  GetCommand,
-} from "@aws-sdk/lib-dynamodb";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import { queryOne } from "../db.js";
 
-const dynamoClient = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
 const s3Client = new S3Client({});
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.DOCUMENTS_TABLE;
     const bucketName = process.env.DOCUMENTS_BUCKET;
 
-    if (!tableName || !bucketName) {
+    if (!bucketName) {
       return {
         statusCode: 500,
         body: JSON.stringify({ message: "Configuration missing" }),
@@ -33,37 +25,27 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     }
 
     // Get document metadata to retrieve S3 key
-    const getCommand = new GetCommand({
-      TableName: tableName,
-      Key: { id },
-    });
+    const selectSql = "SELECT * FROM documents WHERE id = $1";
+    const document = await queryOne(selectSql, [id]);
 
-    const getResponse = await docClient.send(getCommand);
-
-    if (!getResponse.Item) {
+    if (!document) {
       return {
         statusCode: 404,
         body: JSON.stringify({ message: "Document not found" }),
       };
     }
 
-    const document = getResponse.Item;
-
     // Delete from S3
     const deleteS3Command = new DeleteObjectCommand({
       Bucket: bucketName,
-      Key: document.s3Key,
+      Key: document.s3_key,
     });
 
     await s3Client.send(deleteS3Command);
 
-    // Delete from DynamoDB
-    const deleteDynamoCommand = new DeleteCommand({
-      TableName: tableName,
-      Key: { id },
-    });
-
-    await docClient.send(deleteDynamoCommand);
+    // Delete from PostgreSQL
+    const deleteSql = "DELETE FROM documents WHERE id = $1";
+    await queryOne(deleteSql, [id]);
 
     return {
       statusCode: 200,

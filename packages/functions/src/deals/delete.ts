@@ -1,21 +1,8 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { queryOne } from "../db.js";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.DEALS_TABLE;
-
-    if (!tableName) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ message: "Table name not configured" }),
-      };
-    }
-
     const { id } = event.pathParameters || {};
 
     if (!id) {
@@ -25,15 +12,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       };
     }
 
-    const command = new DeleteCommand({
-      TableName: tableName,
-      Key: { id },
-      ReturnValues: "ALL_OLD",
-    });
+    const sql = "DELETE FROM deals WHERE id = $1 RETURNING *";
+    const deal = await queryOne(sql, [id]);
 
-    const response = await docClient.send(command);
-
-    if (!response.Attributes) {
+    if (!deal) {
       return {
         statusCode: 404,
         body: JSON.stringify({ message: "Deal not found" }),
@@ -48,7 +30,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       },
       body: JSON.stringify({
         message: "Deal deleted successfully",
-        deal: response.Attributes,
+        deal,
       }),
     };
   } catch (error) {

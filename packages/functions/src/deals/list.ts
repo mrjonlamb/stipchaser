@@ -1,62 +1,38 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  ScanCommand,
-  QueryCommand,
-} from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { query } from "../db.js";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.DEALS_TABLE;
-
-    if (!tableName) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ message: "Table name not configured" }),
-      };
-    }
-
     const { status, customerId } = event.queryStringParameters || {};
 
-    let command;
+    let sql: string;
+    let params: any[] = [];
 
     if (status) {
-      // Query by status using GSI
-      command = new QueryCommand({
-        TableName: tableName,
-        IndexName: "statusIndex",
-        KeyConditionExpression: "#status = :status",
-        ExpressionAttributeNames: {
-          "#status": "status",
-        },
-        ExpressionAttributeValues: {
-          ":status": status,
-        },
-        ScanIndexForward: false, // Sort by createdAt descending
-      });
+      // Query by status
+      sql = `
+        SELECT * FROM deals 
+        WHERE status = $1 
+        ORDER BY created_at DESC
+      `;
+      params = [status];
     } else if (customerId) {
-      // Query by customerId using GSI
-      command = new QueryCommand({
-        TableName: tableName,
-        IndexName: "customerIndex",
-        KeyConditionExpression: "customerId = :customerId",
-        ExpressionAttributeValues: {
-          ":customerId": customerId,
-        },
-        ScanIndexForward: false,
-      });
+      // Query by customerId
+      sql = `
+        SELECT * FROM deals 
+        WHERE customer_id = $1 
+        ORDER BY created_at DESC
+      `;
+      params = [customerId];
     } else {
-      // Scan all deals
-      command = new ScanCommand({
-        TableName: tableName,
-      });
+      // Get all deals
+      sql = `
+        SELECT * FROM deals 
+        ORDER BY created_at DESC
+      `;
     }
 
-    const response = await docClient.send(command);
+    const deals = await query(sql, params);
 
     return {
       statusCode: 200,
@@ -65,8 +41,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         "Access-Control-Allow-Origin": "*",
       },
       body: JSON.stringify({
-        deals: response.Items || [],
-        count: response.Count || 0,
+        deals,
+        count: deals.length,
       }),
     };
   } catch (error) {

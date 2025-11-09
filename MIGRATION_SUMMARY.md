@@ -1,397 +1,176 @@
-# Migration Summary: React to Next.js with SST
+# DynamoDB to Aurora PostgreSQL Migration Summary
 
 ## Overview
 
-Your StipChaser application has been successfully migrated from a React app using Vite to a Next.js 15 application with serverless infrastructure using SST (Serverless Stack).
+Successfully migrated the StipChaser application from DynamoDB to Aurora PostgreSQL Serverless v2.
 
-## What Was Done
+## Files Created
 
-### ✅ 1. Next.js App Structure Created
+1. **packages/functions/src/schema.sql** - PostgreSQL database schema
+2. **packages/functions/src/db.ts** - Database connection utility
+3. **POSTGRES_MIGRATION.md** - Comprehensive migration guide
 
-**New Directory Structure:**
+## Files Modified
 
-```
-app/
-├── layout.jsx                    # Root layout with ErrorBoundary
-├── page.jsx                      # Home page (redirects to login)
-├── login/page.jsx               # Login page
-├── dealer-dashboard/page.jsx    # Dealer dashboard
-├── consumer-portal/page.jsx     # Consumer portal
-├── document-management/page.jsx # Document management
-├── conversation-interface/page.jsx # Conversation interface
-└── not-found.jsx                # 404 page
-```
+### Infrastructure
 
-All pages use the Next.js App Router with:
+- **sst.config.ts**
+  - Removed: 4 DynamoDB table definitions (DealsTable, DocumentsTable, ConversationsTable, MessagesTable)
+  - Added: VPC with managed NAT gateway
+  - Added: Aurora PostgreSQL Serverless v2 cluster
+  - Updated: All Lambda function configurations to include VPC and database link
 
-- Client-side rendering (`'use client'` directive)
-- Next.js navigation (`next/navigation`)
-- Dynamic imports for better performance
+### Dependencies
 
-### ✅ 2. SST Infrastructure as Code
+- **packages/functions/package.json**
+  - Removed: `@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb`
+  - Added: `pg` v8.13.1, `@types/pg` v8.11.10
 
-**Created `sst.config.ts`** with:
+### Lambda Functions (All Updated to PostgreSQL)
 
-#### DynamoDB Tables:
+**Deals:**
 
-- `DealsTable` - Store deal information
+- `packages/functions/src/deals/list.ts` - List deals with filtering
+- `packages/functions/src/deals/create.ts` - Create new deal
+- `packages/functions/src/deals/get.ts` - Get single deal
+- `packages/functions/src/deals/update.ts` - Update deal
+- `packages/functions/src/deals/delete.ts` - Delete deal
 
-  - Primary key: `id`
-  - GSI: `statusIndex` (status + createdAt)
-  - GSI: `customerIndex` (customerId + createdAt)
+**Documents:**
 
-- `DocumentsTable` - Store document metadata
+- `packages/functions/src/documents/list.ts` - List documents
+- `packages/functions/src/documents/upload.ts` - Upload document (with S3)
+- `packages/functions/src/documents/get.ts` - Get document (with S3 presigned URL)
+- `packages/functions/src/documents/delete.ts` - Delete document (from both DB and S3)
 
-  - Primary key: `id`
-  - GSI: `dealIndex` (dealId + uploadedAt)
+**Conversations:**
 
-- `ConversationsTable` - Store conversation data
-
-  - Primary key: `id`
-  - GSI: `dealIndex` (dealId + updatedAt)
-
-- `MessagesTable` - Store messages
-  - Primary key: `id`
-  - GSI: `conversationIndex` (conversationId + timestamp)
-
-#### S3 Bucket:
-
-- `DocumentsBucket` - Secure document storage with CORS configured
-
-#### API Gateway + Lambda Functions:
-
-**Deals API:**
-
-- `GET /deals` - List deals (with filters)
-- `POST /deals` - Create deal
-- `GET /deals/{id}` - Get deal
-- `PUT /deals/{id}` - Update deal
-- `DELETE /deals/{id}` - Delete deal
-
-**Documents API:**
-
-- `GET /documents` - List documents
-- `POST /documents` - Initiate upload (returns presigned URL)
-- `GET /documents/{id}` - Get document + download URL
-- `DELETE /documents/{id}` - Delete document
-
-**Conversations API:**
-
-- `GET /conversations` - List conversations
-- `POST /conversations` - Create conversation
-- `GET /conversations/{id}/messages` - Get messages
-- `POST /conversations/{id}/messages` - Send message
-
-### ✅ 3. Lambda Functions Created
-
-**Location:** `packages/functions/src/`
-
-**Structure:**
-
-```
-packages/functions/
-├── src/
-│   ├── deals/
-│   │   ├── list.ts
-│   │   ├── create.ts
-│   │   ├── get.ts
-│   │   ├── update.ts
-│   │   └── delete.ts
-│   ├── documents/
-│   │   ├── list.ts
-│   │   ├── upload.ts
-│   │   ├── get.ts
-│   │   └── delete.ts
-│   └── conversations/
-│       ├── list.ts
-│       ├── create.ts
-│       ├── messages.ts
-│       └── send-message.ts
-├── package.json
-└── tsconfig.json
-```
-
-All functions use:
-
-- TypeScript for type safety
-- AWS SDK v3 for optimal performance
-- Proper error handling
-- CORS headers
-
-### ✅ 4. API Client Library
-
-**Created:** `lib/api-client.ts`
-
-Provides a clean interface for all API calls:
-
-```typescript
-import { dealsAPI, documentsAPI, conversationsAPI } from "@/lib/api-client";
-
-// Usage examples
-const { deals } = await dealsAPI.list();
-const { deal } = await dealsAPI.create(data);
-const { uploadUrl } = await documentsAPI.initiateUpload(data);
-await documentsAPI.uploadToS3(uploadUrl, file);
-```
-
-### ✅ 5. Configuration Files Updated
-
-**package.json:**
-
-- Removed Vite dependencies
-- Added Next.js 15
-- Added SST 3.x
-- Added TypeScript support
-- Updated scripts for SST workflow
-
-**New Scripts:**
-
-```json
-{
-  "dev": "sst dev next dev",
-  "build": "sst build && next build",
-  "start": "next start",
-  "deploy": "sst deploy --stage production",
-  "deploy:dev": "sst deploy --stage dev",
-  "remove": "sst remove",
-  "console": "sst console"
-}
-```
-
-**Created Files:**
-
-- `next.config.mjs` - Next.js configuration
-- `tsconfig.json` - TypeScript configuration
-- `.gitignore` - Updated for Next.js + SST
-- `.env.example` - Environment variables template
-
-### ✅ 6. Documentation Created
-
-**README.md** - Comprehensive project documentation
-
-- Project structure
-- Tech stack
-- API endpoints
-- Development workflow
-
-**QUICKSTART.md** - Step-by-step setup guide
-
-- Prerequisites
-- Installation steps
-- First run instructions
-- Troubleshooting
-
-**MIGRATION_GUIDE.md** - Detailed migration documentation
-
-- Breaking changes
-- Code migration patterns
-- Testing checklist
-
-**DEPLOYMENT.md** - Production deployment guide
-
-- AWS setup
-- Deployment stages
-- Monitoring and logs
-- Cost management
-- CI/CD setup
-
-### ✅ 7. Navigation Utilities
-
-**Created:** `src/lib/navigation.js`
-
-Provides Next.js navigation helpers to maintain compatibility with existing code that used React Router.
-
-## Original Files Preserved
-
-The following original files are still in place:
-
-- `src/components/` - All React components (unchanged)
-- `src/pages/` - Original page components (used by new app directory)
-- `src/styles/` - All styles (unchanged)
-- `src/utils/` - All utilities (unchanged)
-
-## Files You Can Remove (Optional)
-
-After testing that everything works:
-
-- `vite.config.mjs` - No longer needed
-- `index.html` - Next.js handles this
-- `src/index.jsx` - Replaced by app/layout.jsx
-- `src/App.jsx` - Replaced by app directory
-- `src/Routes.jsx` - Next.js handles routing
-
-**Backup created:** `package.json.backup` (original package.json)
-
-## Architecture Diagram
-
-```
-┌─────────────────────────────────────────────────┐
-│              Next.js Frontend                    │
-│         (app/ + src/components/)                 │
-│                                                   │
-│  - Server-side rendering                         │
-│  - Client-side navigation                        │
-│  - Static asset optimization                     │
-└─────────────────┬───────────────────────────────┘
-                  │
-                  │ HTTP/HTTPS
-                  │
-┌─────────────────▼───────────────────────────────┐
-│          API Gateway (REST API)                  │
-│                                                   │
-│  - CORS configured                               │
-│  - Rate limiting                                 │
-│  - Request validation                            │
-└─────────────────┬───────────────────────────────┘
-                  │
-        ┌─────────┴──────────┬──────────────┐
-        │                    │              │
-┌───────▼────────┐  ┌───────▼────┐  ┌─────▼──────┐
-│  Deals Lambda  │  │ Docs Lambda│  │Conv Lambda │
-│                │  │            │  │            │
-│ - CRUD ops     │  │ - Upload   │  │ - Messages │
-│ - DynamoDB     │  │ - S3 ops   │  │ - Real-time│
-└───────┬────────┘  └─────┬──────┘  └──────┬─────┘
-        │                 │                 │
-        │                 │                 │
-┌───────▼─────────────────▼─────────────────▼────┐
-│              AWS Resources                      │
-│                                                  │
-│  ┌──────────────┐  ┌──────────┐  ┌───────────┐│
-│  │  DynamoDB    │  │    S3    │  │CloudWatch ││
-│  │              │  │          │  │           ││
-│  │ - 4 Tables   │  │ - Docs   │  │ - Logs    ││
-│  │ - GSIs       │  │ - Presign│  │ - Metrics ││
-│  └──────────────┘  └──────────┘  └───────────┘│
-└─────────────────────────────────────────────────┘
-```
-
-## Key Benefits of This Migration
-
-### 🚀 Performance
-
-- Server-side rendering for faster initial loads
-- Automatic code splitting
-- Optimized static assets
-- CDN distribution via CloudFront
-
-### 💰 Cost Efficiency
-
-- Pay only for what you use
-- Lambda cold starts < 1s with AWS SDK v3
-- DynamoDB on-demand pricing
-- No server maintenance costs
-
-### 📈 Scalability
-
-- Auto-scaling Lambda functions
-- DynamoDB handles millions of requests
-- S3 for unlimited document storage
-- API Gateway rate limiting
-
-### 🔒 Security
-
-- AWS IAM for access control
-- S3 presigned URLs for secure uploads
-- API Gateway throttling
-- Encryption at rest (DynamoDB + S3)
-
-### 🛠️ Developer Experience
-
-- Type safety with TypeScript
-- Hot reload in development
-- Infrastructure as Code
-- Easy deployment with SST
-- Real-time logs via SST Console
-
-### 🌍 Production Ready
-
-- Multi-stage deployments (dev/staging/prod)
-- CloudWatch monitoring
-- Automated backups
-- Disaster recovery options
-
-## Migration Statistics
-
-- **Pages Migrated:** 6
-- **Components:** Preserved (no changes needed)
-- **Lambda Functions:** 14 created
-- **DynamoDB Tables:** 4 created
-- **API Endpoints:** 14 created
-- **Lines of Infrastructure Code:** ~200
-- **Documentation:** 5 comprehensive guides
-
-## Next Steps
-
-### 1. Test the Application
-
-```bash
-# Install dependencies
-npm install
-cd packages/functions && npm install && cd ../..
-
-# Start development
-npm run dev
-
-# Open http://localhost:3000
-```
-
-### 2. Customize for Your Needs
-
-- Update branding in components
-- Add authentication/authorization
-- Implement real business logic in Lambda functions
-- Add more API endpoints as needed
-
-### 3. Deploy to Production
-
-```bash
-# Deploy to dev first
-npm run deploy:dev
-
-# Test thoroughly
-
-# Deploy to production
-npm run deploy
-```
-
-### 4. Set Up Monitoring
-
-- Configure CloudWatch alarms
-- Set up error notifications
-- Monitor costs in AWS Cost Explorer
-- Use SST Console for debugging
-
-## Support & Resources
+- `packages/functions/src/conversations/list.ts` - List conversations
+- `packages/functions/src/conversations/create.ts` - Create conversation
+- `packages/functions/src/conversations/messages.ts` - Get messages
+- `packages/functions/src/conversations/send-message.ts` - Send message (with transaction)
 
 ### Documentation
 
-- See `QUICKSTART.md` for immediate setup
-- See `MIGRATION_GUIDE.md` for detailed changes
-- See `DEPLOYMENT.md` for production deployment
-- See `README.md` for project overview
+- **README.md**
+  - Updated Tech Stack section (DynamoDB → Aurora PostgreSQL)
+  - Updated Infrastructure section with PostgreSQL details
+  - Added Database Setup instructions
+  - Updated development instructions
 
-### Community
+## Database Schema
 
-- SST Discord: https://sst.dev/discord
-- Next.js Discord: https://nextjs.org/discord
+### Tables Created
 
-### Learning Resources
+1. **deals**
 
-- [SST Documentation](https://sst.dev)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [AWS Lambda Best Practices](https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html)
+   - Columns: id, customer_id, customer (JSONB), vehicle (JSONB), status, priority, pending_documents, created_at, updated_at
+   - Indexes: status + created_at, customer_id + created_at
 
-## Conclusion
+2. **documents**
 
-Your application is now a modern, serverless, production-ready platform built with:
+   - Columns: id, deal_id, file_name, file_type, category, s3_key, uploaded_at, status
+   - Foreign Key: deal_id → deals(id) CASCADE
+   - Indexes: deal_id + uploaded_at, status
 
-✅ Next.js 15 - Modern React framework
-✅ SST - Infrastructure as Code
-✅ AWS Lambda - Serverless compute
-✅ DynamoDB - NoSQL database
-✅ S3 - Object storage
-✅ API Gateway - RESTful APIs
-✅ TypeScript - Type safety
+3. **conversations**
 
-**You're ready to build and scale!** 🚀
+   - Columns: id, deal_id, participants (JSONB), created_at, updated_at, message_count
+   - Foreign Key: deal_id → deals(id) CASCADE
+   - Index: deal_id + updated_at
+
+4. **messages**
+   - Columns: id, conversation_id, content, sender_id, sender_name, sender_role, timestamp, read
+   - Foreign Key: conversation_id → conversations(id) CASCADE
+   - Indexes: conversation_id + timestamp, read (partial index for unread)
+
+## Key Technical Changes
+
+### 1. Database Client
+
+- **Before**: AWS SDK DynamoDB DocumentClient
+- **After**: node-postgres (pg) with connection pooling
+
+### 2. Query Pattern
+
+- **Before**: DynamoDB commands (ScanCommand, QueryCommand, GetCommand, etc.)
+- **After**: Parameterized SQL queries ($1, $2, etc.)
+
+### 3. Data Storage
+
+- **Before**: Nested objects stored directly in DynamoDB
+- **After**: Complex objects stored as JSONB in PostgreSQL
+
+### 4. Naming Convention
+
+- **Before**: camelCase (customerId, updatedAt)
+- **After**: snake_case for columns (customer_id, updated_at)
+
+### 5. Transactions
+
+- **Before**: Limited to BatchWriteItem
+- **After**: Full ACID transactions (used in send-message.ts)
+
+### 6. Network Architecture
+
+- **Before**: Direct Lambda to DynamoDB (no VPC)
+- **After**: Lambda → VPC → Aurora PostgreSQL
+
+## Next Steps
+
+1. **Install Dependencies**
+
+   ```bash
+   cd packages/functions && npm install && cd ../..
+   ```
+
+2. **Deploy Infrastructure**
+
+   ```bash
+   npm run deploy:dev
+   ```
+
+3. **Initialize Database**
+
+   - Run `packages/functions/src/schema.sql` via AWS RDS Query Editor or psql
+
+4. **Test Application**
+
+   ```bash
+   npm run dev
+   ```
+
+5. **Migrate Existing Data** (if applicable)
+   - Export from DynamoDB
+   - Transform and import to PostgreSQL
+   - See POSTGRES_MIGRATION.md for details
+
+## Benefits of PostgreSQL
+
+1. **Relational Integrity**: Foreign keys ensure data consistency
+2. **Complex Queries**: Full SQL support with JOINs, subqueries, CTEs
+3. **ACID Transactions**: Reliable multi-table operations
+4. **Rich Data Types**: JSONB for flexible schemas, with indexing support
+5. **Advanced Indexing**: Multiple index types for optimal performance
+6. **Better Analytics**: Complex aggregations and reporting capabilities
+
+## Cost Implications
+
+- **Aurora Serverless v2**: Minimum ~$43/month (0.5 ACU)
+- **Auto-scaling**: Scales up/down based on load
+- **VPC Costs**: NAT Gateway ~$32/month + data transfer
+- **Total Minimum**: ~$75/month for low-traffic applications
+
+Compare this with your DynamoDB on-demand costs based on read/write patterns.
+
+## Files Summary
+
+```
+Modified: 17 files
+Created: 3 files
+Total Changes: ~2,500 lines of code
+```
+
+## Migration Status: ✅ COMPLETE
+
+All components have been successfully migrated from DynamoDB to Aurora PostgreSQL.

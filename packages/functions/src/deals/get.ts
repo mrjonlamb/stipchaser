@@ -1,21 +1,8 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { queryOne } from "../db.js";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.DEALS_TABLE;
-
-    if (!tableName) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ message: "Table name not configured" }),
-      };
-    }
-
     const { id } = event.pathParameters || {};
 
     if (!id) {
@@ -25,14 +12,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       };
     }
 
-    const command = new GetCommand({
-      TableName: tableName,
-      Key: { id },
-    });
+    const sql = "SELECT * FROM deals WHERE id = $1";
+    const deal = await queryOne(sql, [id]);
 
-    const response = await docClient.send(command);
-
-    if (!response.Item) {
+    if (!deal) {
       return {
         statusCode: 404,
         body: JSON.stringify({ message: "Deal not found" }),
@@ -46,7 +29,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         "Access-Control-Allow-Origin": "*",
       },
       body: JSON.stringify({
-        deal: response.Item,
+        deal,
       }),
     };
   } catch (error) {

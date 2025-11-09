@@ -1,27 +1,9 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  PutCommand,
-  UpdateCommand,
-} from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { randomUUID } from "crypto";
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { queryOne, getClient } from "../db.js";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const conversationsTable = process.env.CONVERSATIONS_TABLE;
-    const messagesTable = process.env.MESSAGES_TABLE;
-
-    if (!conversationsTable || !messagesTable) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ message: "Configuration missing" }),
-      };
-    }
-
     const { id } = event.pathParameters || {};
 
     if (!id) {
@@ -52,50 +34,64 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     }
 
     const now = Date.now();
-    const message = {
-      id: randomUUID(),
-      conversationId: id,
-      content,
-      senderId,
-      senderName,
-      senderRole: senderRole || "user",
-      timestamp: now,
-      read: false,
-    };
+    const messageId = randomUUID();
 
-    // Save message to messages table
-    const putCommand = new PutCommand({
-      TableName: messagesTable,
-      Item: message,
-    });
+    // Use a transaction to insert message and update conversation atomically
+    const client = await getClient();
 
-    await docClient.send(putCommand);
+    try {
+      await client.query("BEGIN");
 
-    // Update conversation's updatedAt and increment messageCount
-    const updateCommand = new UpdateCommand({
-      TableName: conversationsTable,
-      Key: { id },
-      UpdateExpression:
-        "SET updatedAt = :updatedAt, messageCount = messageCount + :inc",
-      ExpressionAttributeValues: {
-        ":updatedAt": now,
-        ":inc": 1,
-      },
-    });
+      // Insert message
+      const insertMessageSql = `
+        INSERT INTO messages (
+          id, conversation_id, content, sender_id, sender_name, sender_role, timestamp, read
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+      `;
 
-    await docClient.send(updateCommand);
+      const messageResult = await client.query(insertMessageSql, [
+        messageId,
+        id,
+        content,
+        senderId,
+        senderName,
+        senderRole || "user",
+        now,
+        false,
+      ]);
 
-    return {
-      statusCode: 201,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({
-        message: "Message sent successfully",
-        data: message,
-      }),
-    };
+      const message = messageResult.rows[0];
+
+      // Update conversation's updated_at and increment message_count
+      const updateConversationSql = `
+        UPDATE conversations 
+        SET updated_at = $1, message_count = message_count + 1
+        WHERE id = $2
+      `;
+
+      await client.query(updateConversationSql, [now, id]);
+
+      await client.query("COMMIT");
+
+      return {
+        statusCode: 201,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({
+          message: "Message sent successfully",
+          data: message,
+        }),
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error("Error sending message:", error);
     return {

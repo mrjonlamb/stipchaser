@@ -21,7 +21,7 @@ Built with scalability in mind, StipChaser empowers dealerships to focus on grow
 - **Styling**: Tailwind CSS
 - **Infrastructure**: SST (Serverless Stack)
 - **Backend**: AWS Lambda + API Gateway
-- **Database**: DynamoDB
+- **Database**: Aurora PostgreSQL (Serverless v2)
 - **Storage**: S3
 
 ## Project Structure
@@ -89,9 +89,18 @@ This will:
 
 - Start the Next.js dev server on `http://localhost:3000`
 - Deploy a temporary SST stack for local development
-- Connect your local app to real AWS resources (DynamoDB, S3, etc.)
+- Connect your local app to real AWS resources (Aurora PostgreSQL, S3, VPC, etc.)
 
 The SST CLI will automatically create the required AWS resources in your account.
+
+#### Database Setup
+
+After the first deployment, you need to initialize the database schema:
+
+1. Connect to your Aurora PostgreSQL database using the credentials from SST
+2. Run the schema file located at `packages/functions/src/schema.sql`
+
+You can use the AWS RDS Query Editor or a PostgreSQL client to execute the schema.
 
 ### Building for Production
 
@@ -153,11 +162,12 @@ The application uses SST to manage AWS infrastructure as code:
 
 - **API Gateway**: HTTP API for RESTful endpoints
 - **Lambda Functions**: Serverless compute for API handlers
-- **DynamoDB Tables**:
-  - DealsTable: Store deal information
-  - DocumentsTable: Store document metadata
-  - ConversationsTable: Store conversation data
-  - MessagesTable: Store messages
+- **Aurora PostgreSQL**: Serverless v2 database cluster with the following tables:
+  - deals: Store deal information with customer and vehicle data
+  - documents: Store document metadata with S3 references
+  - conversations: Store conversation data with participants
+  - messages: Store messages within conversations
+- **VPC**: Virtual Private Cloud for secure database access
 - **S3 Bucket**: Store uploaded documents with presigned URLs
 - **Next.js on AWS**: Serverless Next.js deployment
 
@@ -189,6 +199,13 @@ The project includes GitHub Actions workflows for automated deployment:
 - **Production Deployment**: Auto-deploys to production on push to `main` branch
 
 **Setup Required**: Configure AWS OIDC authentication. See `AWS_OIDC_SETUP.md` for instructions.
+
+## Database Migration
+
+This project uses Aurora PostgreSQL. If you're setting up from scratch or migrating from DynamoDB:
+
+- [PostgreSQL Migration Guide](./POSTGRES_MIGRATION.md) - Complete migration instructions
+- [Migration Summary](./MIGRATION_SUMMARY.md) - Overview of changes made
 
 ## Learn More
 

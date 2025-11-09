@@ -1,48 +1,30 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  ScanCommand,
-  QueryCommand,
-} from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { query } from "../db.js";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.DOCUMENTS_TABLE;
-
-    if (!tableName) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ message: "Table name not configured" }),
-      };
-    }
-
     const { dealId } = event.queryStringParameters || {};
 
-    let command;
+    let sql: string;
+    let params: any[] = [];
 
     if (dealId) {
       // Query documents by dealId
-      command = new QueryCommand({
-        TableName: tableName,
-        IndexName: "dealIndex",
-        KeyConditionExpression: "dealId = :dealId",
-        ExpressionAttributeValues: {
-          ":dealId": dealId,
-        },
-        ScanIndexForward: false, // Sort by uploadedAt descending
-      });
+      sql = `
+        SELECT * FROM documents 
+        WHERE deal_id = $1 
+        ORDER BY uploaded_at DESC
+      `;
+      params = [dealId];
     } else {
-      // Scan all documents
-      command = new ScanCommand({
-        TableName: tableName,
-      });
+      // Get all documents
+      sql = `
+        SELECT * FROM documents 
+        ORDER BY uploaded_at DESC
+      `;
     }
 
-    const response = await docClient.send(command);
+    const documents = await query(sql, params);
 
     return {
       statusCode: 200,
@@ -51,8 +33,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         "Access-Control-Allow-Origin": "*",
       },
       body: JSON.stringify({
-        documents: response.Items || [],
-        count: response.Count || 0,
+        documents,
+        count: documents.length,
       }),
     };
   } catch (error) {

@@ -1,48 +1,30 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  ScanCommand,
-  QueryCommand,
-} from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+import { query } from "../db.js";
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.CONVERSATIONS_TABLE;
-
-    if (!tableName) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ message: "Table name not configured" }),
-      };
-    }
-
     const { dealId } = event.queryStringParameters || {};
 
-    let command;
+    let sql: string;
+    let params: any[] = [];
 
     if (dealId) {
       // Query conversations by dealId
-      command = new QueryCommand({
-        TableName: tableName,
-        IndexName: "dealIndex",
-        KeyConditionExpression: "dealId = :dealId",
-        ExpressionAttributeValues: {
-          ":dealId": dealId,
-        },
-        ScanIndexForward: false, // Sort by updatedAt descending
-      });
+      sql = `
+        SELECT * FROM conversations 
+        WHERE deal_id = $1 
+        ORDER BY updated_at DESC
+      `;
+      params = [dealId];
     } else {
-      // Scan all conversations
-      command = new ScanCommand({
-        TableName: tableName,
-      });
+      // Get all conversations
+      sql = `
+        SELECT * FROM conversations 
+        ORDER BY updated_at DESC
+      `;
     }
 
-    const response = await docClient.send(command);
+    const conversations = await query(sql, params);
 
     return {
       statusCode: 200,
@@ -51,8 +33,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         "Access-Control-Allow-Origin": "*",
       },
       body: JSON.stringify({
-        conversations: response.Items || [],
-        count: response.Count || 0,
+        conversations,
+        count: conversations.length,
       }),
     };
   } catch (error) {

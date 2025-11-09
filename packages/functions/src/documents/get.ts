@@ -1,19 +1,15 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import { queryOne } from "../db.js";
 
-const dynamoClient = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
 const s3Client = new S3Client({});
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
-    const tableName = process.env.DOCUMENTS_TABLE;
     const bucketName = process.env.DOCUMENTS_BUCKET;
 
-    if (!tableName || !bucketName) {
+    if (!bucketName) {
       return {
         statusCode: 500,
         body: JSON.stringify({ message: "Configuration missing" }),
@@ -29,27 +25,21 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       };
     }
 
-    // Get document metadata from DynamoDB
-    const command = new GetCommand({
-      TableName: tableName,
-      Key: { id },
-    });
+    // Get document metadata from PostgreSQL
+    const sql = "SELECT * FROM documents WHERE id = $1";
+    const document = await queryOne(sql, [id]);
 
-    const response = await docClient.send(command);
-
-    if (!response.Item) {
+    if (!document) {
       return {
         statusCode: 404,
         body: JSON.stringify({ message: "Document not found" }),
       };
     }
 
-    const document = response.Item;
-
     // Generate presigned URL for download
     const getCommand = new GetObjectCommand({
       Bucket: bucketName,
-      Key: document.s3Key,
+      Key: document.s3_key,
     });
 
     const downloadUrl = await getSignedUrl(s3Client, getCommand, {
