@@ -2,35 +2,22 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../../../../lib/auth-context";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
-import Select from "../../../components/ui/Select";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import Icon from "../../../components/AppIcon";
 
 const LoginForm = () => {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    role: "",
     rememberMe: false,
   });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
-
-  // Mock credentials for different user types
-  const mockCredentials = {
-    dealer: { email: "dealer@stipchaser.com", password: "dealer123" },
-    staff: { email: "staff@stipchaser.com", password: "staff123" },
-    consumer: { email: "consumer@stipchaser.com", password: "consumer123" },
-  };
-
-  const roleOptions = [
-    { value: "dealer", label: "Dealer Manager" },
-    { value: "staff", label: "Dealer Staff" },
-    { value: "consumer", label: "Consumer" },
-  ];
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -40,7 +27,7 @@ const LoginForm = () => {
   };
 
   const validateForm = () => {
-    const newErrors = {};
+    const newErrors: any = {};
 
     if (!formData?.email) {
       newErrors.email = "Email is required";
@@ -54,14 +41,10 @@ const LoginForm = () => {
       newErrors.password = "Password must be at least 6 characters";
     }
 
-    if (!formData?.role) {
-      newErrors.role = "Please select your role";
-    }
-
     return newErrors;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e?.preventDefault();
     const newErrors = validateForm();
 
@@ -72,27 +55,27 @@ const LoginForm = () => {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const expectedCredentials = mockCredentials?.[formData?.role];
+    try {
+      const success = await signIn(formData.email, formData.password);
 
-      if (
-        formData?.email === expectedCredentials?.email &&
-        formData?.password === expectedCredentials?.password
-      ) {
-        // Successful login - navigate based on role
-        if (formData?.role === "consumer") {
-          router.push("/consumer-portal");
-        } else {
-          router.push("/dealer-dashboard");
-        }
+      if (success) {
+        // Get user info to determine redirect
+        // The useAuth hook will have the updated user info
+        // For now, redirect to dealer dashboard and let middleware handle it
+        router.push("/dealer-dashboard");
       } else {
         setErrors({
-          general: `Invalid credentials. Use ${expectedCredentials?.email} / ${expectedCredentials?.password} for ${formData?.role} access.`,
+          general: "Invalid email or password. Please try again.",
         });
       }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      setErrors({
+        general: error.message || "An error occurred during sign in.",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -131,16 +114,6 @@ const LoginForm = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Select
-            label="Role"
-            placeholder="Select your role"
-            options={roleOptions}
-            value={formData?.role}
-            onChange={(value) => handleInputChange("role", value)}
-            error={errors?.role}
-            required
-          />
-
           <Input
             label="Email Address"
             type="email"

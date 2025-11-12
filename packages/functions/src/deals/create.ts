@@ -1,12 +1,44 @@
-import { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { randomUUID } from "crypto";
-import { queryOne } from "../db.js";
+import { getDb } from "../db";
+import {
+  verifyToken,
+  getUserFromToken,
+  unauthorizedResponse,
+  isDealerStaff,
+  forbiddenResponse,
+} from "../auth/auth";
 
-export const handler: APIGatewayProxyHandlerV2 = async (event) => {
+export async function handler(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
   try {
+    // Verify authentication
+    const authUser = await verifyToken(event);
+    if (!authUser) {
+      return unauthorizedResponse("Authentication required");
+    }
+
+    const db = getDb();
+    const user = await getUserFromToken(authUser, db);
+    if (!user) {
+      return unauthorizedResponse("User not found in database");
+    }
+
+    // Only Dealer Staff and Managers can create deals
+    if (!isDealerStaff(authUser)) {
+      return forbiddenResponse(
+        "Only Dealer Managers and Staff can create deals"
+      );
+    }
+
     if (!event.body) {
       return {
         statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
         body: JSON.stringify({ message: "Request body is required" }),
       };
     }
@@ -17,6 +49,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     if (!dealData.customer || !dealData.vehicle) {
       return {
         statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
         body: JSON.stringify({
           message: "Missing required fields: customer and vehicle are required",
         }),
@@ -31,15 +67,16 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
     const sql = `
       INSERT INTO deals (
-        id, customer_id, customer, vehicle, status, priority, 
+        id, dealership_id, customer_id, customer, vehicle, status, priority, 
         pending_documents, created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
 
     const params = [
       id,
+      user.dealership_id,
       dealData.customerId || null,
       JSON.stringify(dealData.customer),
       JSON.stringify(dealData.vehicle),
@@ -50,7 +87,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       now,
     ];
 
-    const deal = await queryOne(sql, params);
+    const result = await db.query(sql, params);
 
     return {
       statusCode: 201,
@@ -60,17 +97,21 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       },
       body: JSON.stringify({
         message: "Deal created successfully",
-        deal,
+        deal: result.rows[0],
       }),
     };
   } catch (error) {
     console.error("Error creating deal:", error);
     return {
       statusCode: 500,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
       body: JSON.stringify({
         message: "Failed to create deal",
         error: error instanceof Error ? error.message : "Unknown error",
       }),
     };
   }
-};
+}

@@ -3,6 +3,8 @@
  * Handles all API calls to the backend Lambda functions
  */
 
+import { getAccessToken } from "./auth-client";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 interface FetchOptions extends RequestInit {
@@ -20,13 +22,30 @@ async function fetchAPI(endpoint: string, options: FetchOptions = {}) {
     url += `?${searchParams.toString()}`;
   }
 
+  // Get access token and add to headers
+  const token = await getAccessToken();
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...fetchOptions.headers,
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
     ...fetchOptions,
-    headers: {
-      "Content-Type": "application/json",
-      ...fetchOptions.headers,
-    },
+    headers,
   });
+
+  // Handle unauthorized responses
+  if (response.status === 401) {
+    // Redirect to login if unauthorized
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    throw new Error("Unauthorized - Please sign in");
+  }
 
   if (!response.ok) {
     const error = await response
@@ -132,8 +151,43 @@ export const conversationsAPI = {
     }),
 };
 
+// Users API
+export const usersAPI = {
+  list: (params?: { role?: string; status?: string }) =>
+    fetchAPI("/users", { params }),
+
+  invite: (data: {
+    email: string;
+    role: "DealerManager" | "DealerStaff" | "Consumer";
+    firstName?: string;
+    lastName?: string;
+  }) =>
+    fetchAPI("/users/invite", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: { status?: string; role?: string }) =>
+    fetchAPI(`/users/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    fetchAPI(`/users/${id}`, {
+      method: "DELETE",
+    }),
+
+  acceptInvitation: (data: { email: string; cognitoUserId: string }) =>
+    fetchAPI("/users/accept-invitation", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
+
 export default {
   deals: dealsAPI,
   documents: documentsAPI,
   conversations: conversationsAPI,
+  users: usersAPI,
 };

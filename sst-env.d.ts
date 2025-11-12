@@ -29,6 +29,17 @@ declare module "sst" {
       "type": "sst.aws.ApiGatewayV2"
       "url": string
     }
+    "StipChaserDB": {
+      "database": string
+      "host": string
+      "password": string
+      "port": number
+      "type": "sst.aws.Postgres"
+      "username": string
+    }
+    "StipChaserVpc": {
+      "type": "sst.aws.Vpc"
+    }
     "StipChaserWeb": {
       "type": "sst.aws.Nextjs"
       "url": string

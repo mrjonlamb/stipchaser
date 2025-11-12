@@ -1,38 +1,51 @@
-import { APIGatewayProxyHandlerV2 } from "aws-lambda";
-import { query } from "../db.js";
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
+import { getDb } from "../db";
+import {
+  verifyToken,
+  getUserFromToken,
+  unauthorizedResponse,
+} from "../auth/auth";
 
-export const handler: APIGatewayProxyHandlerV2 = async (event) => {
+export async function handler(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
   try {
+    // Verify authentication
+    const authUser = await verifyToken(event);
+    if (!authUser) {
+      return unauthorizedResponse("Authentication required");
+    }
+
+    const db = getDb();
+    const user = await getUserFromToken(authUser, db);
+    if (!user) {
+      return unauthorizedResponse("User not found in database");
+    }
+
     const { status, customerId } = event.queryStringParameters || {};
 
     let sql: string;
-    let params: any[] = [];
+    let params: any[] = [user.dealership_id];
+    let paramIndex = 2;
+
+    // Base query with dealership filter
+    sql = `SELECT * FROM deals WHERE dealership_id = $1`;
 
     if (status) {
-      // Query by status
-      sql = `
-        SELECT * FROM deals 
-        WHERE status = $1 
-        ORDER BY created_at DESC
-      `;
-      params = [status];
-    } else if (customerId) {
-      // Query by customerId
-      sql = `
-        SELECT * FROM deals 
-        WHERE customer_id = $1 
-        ORDER BY created_at DESC
-      `;
-      params = [customerId];
-    } else {
-      // Get all deals
-      sql = `
-        SELECT * FROM deals 
-        ORDER BY created_at DESC
-      `;
+      sql += ` AND status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
     }
 
-    const deals = await query(sql, params);
+    if (customerId) {
+      sql += ` AND customer_id = $${paramIndex}`;
+      params.push(customerId);
+      paramIndex++;
+    }
+
+    sql += ` ORDER BY created_at DESC`;
+
+    const result = await db.query(sql, params);
 
     return {
       statusCode: 200,
@@ -41,18 +54,22 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         "Access-Control-Allow-Origin": "*",
       },
       body: JSON.stringify({
-        deals,
-        count: deals.length,
+        deals: result.rows,
+        count: result.rows.length,
       }),
     };
   } catch (error) {
     console.error("Error fetching deals:", error);
     return {
       statusCode: 500,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
       body: JSON.stringify({
         message: "Failed to fetch deals",
         error: error instanceof Error ? error.message : "Unknown error",
       }),
     };
   }
-};
+}
