@@ -14,9 +14,14 @@ export default $config({
       nat: "managed",
     });
 
-    // Aurora PostgreSQL Cluster
-    const database = new sst.aws.Postgres("StipChaserDB", {
+    // Aurora PostgreSQL Serverless v2 Cluster
+    const database = new sst.aws.Aurora("MyDatabase", {
+      engine: "postgres",
       vpc,
+      scaling: {
+        min: "0.5 ACU",
+        max: "1 ACU",
+      },
     });
 
     // Cognito User Pool for Authentication
