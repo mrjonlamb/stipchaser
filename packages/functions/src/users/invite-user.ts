@@ -4,6 +4,7 @@ import {
   AdminCreateUserCommand,
   AdminAddUserToGroupCommand,
   AdminUpdateUserAttributesCommand,
+  AdminSetUserPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { getDb } from "../db";
 import {
@@ -15,6 +16,7 @@ import {
   forbiddenResponse,
 } from "../auth/auth";
 import { randomUUID } from "crypto";
+import { sendInvitationEmail } from "../email/ses-client";
 
 const cognitoClient = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION || "us-east-1",
@@ -42,7 +44,7 @@ export async function handler(
 
     // Parse request body
     const body = JSON.parse(event.body || "{}");
-    const { email, role, firstName, lastName } = body;
+    const { email, role, firstName, lastName, phoneNumber } = body;
 
     if (!email || !role) {
       return {
@@ -108,20 +110,35 @@ export async function handler(
     // Create user in Cognito
     const username = email;
     const fullName = `${firstName || ""} ${lastName || ""}`.trim();
+    
+    // Generate a temporary password (8 chars, mixed case, numbers, special chars)
+    const generateTempPassword = () => {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+      let password = "";
+      for (let i = 0; i < 12; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return password;
+    };
+    
+    const temporaryPassword = generateTempPassword();
 
     try {
       // Create user with temporary password
+      const userAttributes = [
+        { Name: "email", Value: email },
+        { Name: "email_verified", Value: "true" },
+        { Name: "custom:role", Value: role },
+        { Name: "custom:dealership_id", Value: user.dealership_id },
+        ...(fullName ? [{ Name: "name", Value: fullName }] : []),
+        ...(phoneNumber ? [{ Name: "phone_number", Value: phoneNumber }] : []),
+      ];
+      
       const createUserCommand = new AdminCreateUserCommand({
         UserPoolId: USER_POOL_ID,
         Username: username,
-        UserAttributes: [
-          { Name: "email", Value: email },
-          { Name: "email_verified", Value: "true" },
-          { Name: "custom:role", Value: role },
-          { Name: "custom:dealership_id", Value: user.dealership_id },
-          ...(fullName ? [{ Name: "name", Value: fullName }] : []),
-        ],
-        DesiredDeliveryMediums: ["EMAIL"],
+        UserAttributes: userAttributes,
+        TemporaryPassword: temporaryPassword,
         MessageAction: "SUPPRESS", // We'll send our own invitation email
       });
 
@@ -146,12 +163,15 @@ export async function handler(
       const now = Date.now();
 
       await db.query(
-        `INSERT INTO users (id, cognito_user_id, email, role, dealership_id, invited_by, status, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        `INSERT INTO users (id, cognito_user_id, email, first_name, last_name, phone_number, role, dealership_id, invited_by, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           userId,
           cognitoUserId,
           email,
+          firstName || null,
+          lastName || null,
+          phoneNumber || null,
           role,
           user.dealership_id,
           user.id,
@@ -161,8 +181,26 @@ export async function handler(
         ]
       );
 
-      // TODO: Send invitation email with link to set password
-      // For now, Cognito will send the temporary password email
+      // Send invitation email with credentials
+      const inviterName = user.email || "Your dealership";
+      const loginUrl = process.env.LOGIN_URL || "https://stipchaser.com/login";
+      
+      try {
+        await sendInvitationEmail({
+          recipientEmail: email,
+          firstName,
+          lastName,
+          role,
+          invitedByName: inviterName,
+          temporaryPassword,
+          loginUrl,
+        });
+        console.log("Invitation email sent successfully to:", email);
+      } catch (emailError) {
+        console.error("Failed to send invitation email:", emailError);
+        // Don't fail the entire invitation if email fails
+        // The user was created, they just won't get the email
+      }
 
       return {
         statusCode: 201,

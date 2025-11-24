@@ -5,37 +5,28 @@
 
 declare module "sst" {
   export interface Resource {
-    "ConversationsTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "DealsTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
     "DocumentsBucket": {
       "name": string
       "type": "sst.aws.Bucket"
-    }
-    "DocumentsTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "MessagesTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
     }
     "StipChaserApi": {
       "type": "sst.aws.ApiGatewayV2"
       "url": string
     }
     "StipChaserDB": {
+      "clusterArn": string
       "database": string
       "host": string
       "password": string
       "port": number
-      "type": "sst.aws.Postgres"
+      "reader": string
+      "secretArn": string
+      "type": "sst.aws.Aurora"
       "username": string
+    }
+    "StipChaserUserPool": {
+      "id": string
+      "type": "sst.aws.CognitoUserPool"
     }
     "StipChaserVpc": {
       "type": "sst.aws.Vpc"

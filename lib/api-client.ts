@@ -161,6 +161,7 @@ export const usersAPI = {
     role: "DealerManager" | "DealerStaff" | "Consumer";
     firstName?: string;
     lastName?: string;
+    phoneNumber?: string;
   }) =>
     fetchAPI("/users/invite", {
       method: "POST",

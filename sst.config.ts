@@ -15,51 +15,57 @@ export default $config({
     });
 
     // Aurora PostgreSQL Serverless v2 Cluster
-    const database = new sst.aws.Aurora("MyDatabase", {
+    const database = new sst.aws.Aurora("StipChaserDB", {
       engine: "postgres",
       vpc,
       scaling: {
         min: "0.5 ACU",
         max: "1 ACU",
       },
+      transform: {
+        cluster: (args) => {
+          // Enable Data API for RDS Query Editor
+          args.enableHttpEndpoint = true;
+        },
+      },
     });
 
     // Cognito User Pool for Authentication
     const userPool = new sst.aws.CognitoUserPool("StipChaserUserPool", {
       usernames: ["email"],
-      aliases: ["email"],
-      mfa: "optional",
       triggers: {
         preSignUp: "packages/functions/src/auth/pre-signup.handler",
       },
     });
 
-    // User Pool Client
-    const userPoolClient = new sst.aws.CognitoUserPoolClient(
+    // User Pool Client using AWS provider
+    const userPoolClient = new aws.cognito.UserPoolClient(
       "StipChaserUserPoolClient",
       {
-        userPool: userPool.id,
+        userPoolId: userPool.id,
+        explicitAuthFlows: [
+          "ALLOW_USER_SRP_AUTH",
+          "ALLOW_USER_PASSWORD_AUTH",
+          "ALLOW_REFRESH_TOKEN_AUTH",
+        ],
       }
     );
 
-    // User Groups
-    const dealerManagerGroup = new sst.aws.CognitoUserGroup(
-      "DealerManagerGroup",
-      {
-        userPool: userPool.id,
-        name: "DealerManager",
-        description: "Dealer Managers with full access",
-      }
-    );
+    // User Groups using AWS provider
+    const dealerManagerGroup = new aws.cognito.UserGroup("DealerManagerGroup", {
+      userPoolId: userPool.id,
+      name: "DealerManager",
+      description: "Dealer Managers with full access",
+    });
 
-    const dealerStaffGroup = new sst.aws.CognitoUserGroup("DealerStaffGroup", {
-      userPool: userPool.id,
+    const dealerStaffGroup = new aws.cognito.UserGroup("DealerStaffGroup", {
+      userPoolId: userPool.id,
       name: "DealerStaff",
       description: "Dealer Staff with limited access",
     });
 
-    const consumerGroup = new sst.aws.CognitoUserGroup("ConsumerGroup", {
-      userPool: userPool.id,
+    const consumerGroup = new aws.cognito.UserGroup("ConsumerGroup", {
+      userPoolId: userPool.id,
       name: "Consumer",
       description: "Consumers with portal access",
     });

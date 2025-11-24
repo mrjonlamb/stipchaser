@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import Icon from "../AppIcon";
 import Button from "./Button";
+import { useAuth } from "../../../lib/auth-context";
 
 interface HeaderProps {
   userRole?: "dealer" | "consumer";
@@ -17,6 +18,7 @@ const Header: React.FC<HeaderProps> = ({
   onRoleSwitch,
 }) => {
   const router = useRouter();
+  const { isManager } = useAuth();
 
   const handleLogoClick = () => {
     router.push("/");
@@ -48,6 +50,19 @@ const Header: React.FC<HeaderProps> = ({
               StipChaser
             </span>
           </div>
+
+          {/* Navigation - Only for Dealer Managers */}
+          {isManager && (
+            <nav className="flex items-center space-x-6">
+              <button
+                onClick={() => router.push("/user-management")}
+                className="flex items-center space-x-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+              >
+                <Icon name="Users" size={18} color="var(--color-foreground)" />
+                <span>Users</span>
+              </button>
+            </nav>
+          )}
 
           {/* Actions */}
           <div className="flex items-center space-x-4">

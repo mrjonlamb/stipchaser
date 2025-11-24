@@ -6,6 +6,7 @@ import {
   authSignOut,
   getAuthUser,
   isAuthenticated,
+  completeNewPassword,
   AuthUser,
 } from "./auth-client";
 import { useRouter } from "next/navigation";
@@ -13,9 +14,10 @@ import { useRouter } from "next/navigation";
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<boolean>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; challengeName?: string }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  completeNewPassword: (newPassword: string) => Promise<boolean>;
   isManager: boolean;
   isStaff: boolean;
   isConsumer: boolean;
@@ -58,9 +60,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function signIn(email: string, password: string): Promise<boolean> {
+  async function signIn(email: string, password: string): Promise<{ success: boolean; challengeName?: string }> {
     try {
       const result = await authSignIn(email, password);
+
+      if (result.success) {
+        const authUser = await getAuthUser();
+        setUser(authUser);
+        return { success: true };
+      }
+
+      if (result.challengeName) {
+        return { success: false, challengeName: result.challengeName };
+      }
+
+      return { success: false };
+    } catch (error) {
+      console.error("Sign in error:", error);
+      return { success: false };
+    }
+  }
+
+  async function handleCompleteNewPassword(newPassword: string): Promise<boolean> {
+    try {
+      const result = await completeNewPassword(newPassword);
 
       if (result.success) {
         const authUser = await getAuthUser();
@@ -70,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return false;
     } catch (error) {
-      console.error("Sign in error:", error);
+      console.error("Complete new password error:", error);
       return false;
     }
   }
@@ -103,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signOut,
         refreshUser,
+        completeNewPassword: handleCompleteNewPassword,
         isManager,
         isStaff,
         isConsumer,

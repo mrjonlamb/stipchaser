@@ -7,6 +7,9 @@ import Icon from "../../../components/AppIcon";
 interface User {
   id: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
   role: string;
   status: string;
   createdAt: number;
@@ -90,7 +93,13 @@ const UsersTable: React.FC<UsersTableProps> = ({
         <thead>
           <tr className="border-b border-border">
             <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">
+              Name
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">
               Email
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">
+              Phone
             </th>
             <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">
               Role
@@ -112,7 +121,13 @@ const UsersTable: React.FC<UsersTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
+          {users.map((user) => {
+            const fullName = [user.firstName, user.lastName]
+              .filter(Boolean)
+              .join(" ");
+            const displayName = fullName || "-";
+            
+            return (
             <tr
               key={user.id}
               className="border-b border-border hover:bg-muted/50 transition-colors"
@@ -123,9 +138,19 @@ const UsersTable: React.FC<UsersTableProps> = ({
                     <Icon name="User" size={16} color="var(--color-primary)" />
                   </div>
                   <span className="text-sm font-medium text-foreground">
-                    {user.email}
+                    {displayName}
                   </span>
                 </div>
+              </td>
+              <td className="py-4 px-4">
+                <span className="text-sm text-foreground">
+                  {user.email}
+                </span>
+              </td>
+              <td className="py-4 px-4">
+                <span className="text-sm text-muted-foreground">
+                  {user.phoneNumber || "-"}
+                </span>
               </td>
               <td className="py-4 px-4">
                 <span
@@ -189,7 +214,8 @@ const UsersTable: React.FC<UsersTableProps> = ({
                 </td>
               )}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

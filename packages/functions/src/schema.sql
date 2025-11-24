@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
     cognito_user_id VARCHAR(255) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    phone_number VARCHAR(20),
     role VARCHAR(50) NOT NULL,
     dealership_id UUID NOT NULL,
     invited_by UUID,
@@ -101,3 +104,7 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_timestamp ON messages(conversation_id, timestamp ASC);
 CREATE INDEX IF NOT EXISTS idx_messages_read ON messages(read) WHERE read = FALSE;
 
+
+
+c17cc66a-9d94-44b6-8aaf-e718b1e6f64d
+94683408-3071-70be-1f83-0a9916a40b36 - Cognito User ID for testing

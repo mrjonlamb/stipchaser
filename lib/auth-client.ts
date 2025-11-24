@@ -8,6 +8,7 @@ import {
   confirmSignUp,
   resetPassword,
   confirmResetPassword,
+  confirmSignIn,
 } from "aws-amplify/auth";
 
 // Configure Amplify
@@ -60,6 +61,28 @@ export async function authSignIn(
   } catch (error: any) {
     console.error("Sign in error:", error);
     return { success: false, error: error.message || "Sign in failed" };
+  }
+}
+
+/**
+ * Complete new password challenge
+ */
+export async function completeNewPassword(
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const result = await confirmSignIn({
+      challengeResponse: newPassword,
+    });
+
+    if (result.isSignedIn) {
+      return { success: true };
+    }
+
+    return { success: false, error: "Password change failed" };
+  } catch (error: any) {
+    console.error("Complete new password error:", error);
+    return { success: false, error: error.message || "Password change failed" };
   }
 }
 

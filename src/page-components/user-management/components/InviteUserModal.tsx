@@ -22,6 +22,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
     email: "",
     firstName: "",
     lastName: "",
+    phoneNumber: "",
     role: "",
   });
   const [errors, setErrors] = useState<any>({});
@@ -76,6 +77,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
         role: formData.role as "DealerManager" | "DealerStaff" | "Consumer",
         firstName: formData.firstName,
         lastName: formData.lastName,
+        phoneNumber: formData.phoneNumber,
       });
 
       onSuccess();
@@ -147,6 +149,14 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                 onChange={(e) => handleInputChange("lastName", e.target.value)}
               />
             </div>
+
+            <Input
+              label="Phone Number (Optional)"
+              type="tel"
+              placeholder="+1 (555) 123-4567"
+              value={formData.phoneNumber}
+              onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+            />
 
             <Select
               label="Role"
