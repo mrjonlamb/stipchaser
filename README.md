@@ -1,6 +1,8 @@
 # StipChaser - Document Collection Platform
 
 A Next.js application with serverless infrastructure for streamlining document collection in car dealerships.
+<img width="1280" height="853" alt="WhatsApp Image 2026-05-01 at 20 15 16" src="https://github.com/user-attachments/assets/dcb5c240-7d8f-4ae8-87ef-4dcd01b627c4" />
+
 
 About StipChaser
 StipChaser is a secure and compliant communication platform designed to streamline interactions between lenders, their representatives, dealership personnel, and consumers. It enables seamless document requests—known as "stips"—directly from customers, transforming a traditionally high-friction, insecure, and time-consuming process into an efficient workflow.
