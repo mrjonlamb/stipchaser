@@ -1,6 +1,6 @@
 # StipChaser - Document Collection Platform
 
-A Next.js application with serverless infrastructure for streamlining document collection in car dealerships.
+A Next.js application with serverless infrastructure for streamlining document collection for the mobility, marine, and powersports space.
 <img width="1280" height="853" alt="WhatsApp Image 2026-05-01 at 20 15 16" src="https://github.com/user-attachments/assets/dcb5c240-7d8f-4ae8-87ef-4dcd01b627c4" />
 
 
